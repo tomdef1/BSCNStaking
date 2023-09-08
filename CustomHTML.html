@@ -21,8 +21,10 @@ window.addEventListener("load", async () => {
 });
 
 let accounts;
-// Staking contract details
-const stakingContractAddress = "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D";
+// Staking contract details for "Ignore Fud" pool
+const stakingContractAddressIgnoreFud = "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D";
+// Staking contract details for "Chain GPT" pool
+const stakingContractAddressChainGPT = "0x136080F5f31f620B3cf331bc83c059043bAe3331";
 const stakingAbi = [
   {
     inputs: [
@@ -95,13 +97,14 @@ const nftAbi = [
   },
 ];
 
-// Binance Smart Chain Mainnet Configuration
+// Binance Smart Chain Mainnet Configuration x BSC News & BloXroute
 const networkId = "0x38"; // Binance Smart Chain Mainnet ID in hexadecimal
 const chainId = "0x38"; // Binance Smart Chain Mainnet Chain ID in hexadecimal
-const rpcUrl = "https://bsc-dataseed.binance.org/"; // Binance Smart Chain Mainnet RPC URL
-
+const rpcUrl = "https://bsc.rpc.blxrbdn.com/"; // Binance Smart Chain Mainnet RPC URL
+//ORIGINAL/DEFAULT: const rpcUrl = "https://bsc.rpc.blxrbdn.com/"; // Binance Smart Chain Mainnet RPC URL
+	
 async function updateData(account) {
-  try {
+  try {		
     // Contract declarations
     const stakingContract = new web3.eth.Contract(
       stakingAbi,
@@ -141,20 +144,32 @@ async function checkAndSwitchChain() {
   }
 }
 
-// Staking Function
-async function stakeToken() {
+/*
+ _____                             ______         _ 
+ |_   _|                           |  ____|       | |
+   | |  __ _ _ __   ___  _ __ ___  | |__ _   _  __| |
+   | | / _` | '_ \ / _ \| '__/ _ \ |  __| | | |/ _` |
+  _| || (_| | | | | (_) | | |  __/ | |  | |_| | (_| |
+ |_____\__, |_| |_|\___/|_|  \___| |_|   \__,_|\__,_|
+        __/ |                                        
+       |___/                                         
+Functions for "Ignore Fud" pool
+*/
+async function stakeTokenIgnoreFud() {
   try {
     // Check and change to BSC Testnet if required
     checkAndSwitchChain();
 
     // Contract declarations
-    const stakingContract = new web3.eth.Contract(
-      stakingAbi,
-      stakingContractAddress
-    );
-
-    const myNftContract = new web3.eth.Contract(nftAbi, nftContractAddress);
-
+  const stakingContract = new web3.eth.Contract(
+	  stakingAbi,
+	  stakingContractAddressIgnoreFud
+  );
+	const myNftContract = new web3.eth.Contract(
+	    nftAbi, 
+	    nftContractAddress
+	);
+	  
     let tokenInputField = document.querySelector(".token-id-input");
     let tokenIds = tokenInputField.value.split(",").map(Number);
     tokenInputField.value = ""; // clear the input field after reading the value
@@ -188,15 +203,15 @@ async function stakeToken() {
   updateData(accounts[0]);
 }
 
-async function unstakeToken() {
+async function unstakeTokenIgnoreFud() {
   try {
     // Check and change to BSC Testnet if required
     checkAndSwitchChain();
 
     // Contract declarations
     const stakingContract = new web3.eth.Contract(
-      stakingAbi,
-      stakingContractAddress
+	    stakingAbi,
+	    stakingContractAddressIgnoreFud
     );
 
     let tokenInputField = document.querySelector(".token-id-input");
@@ -221,16 +236,16 @@ async function unstakeToken() {
   updateData(accounts[0]);
 }
 
-async function claimRewards() {
+async function claimRewardsIgnoreFud() {
   try {
     // Check and change to BSC Testnet if required
     checkAndSwitchChain();
 
     // Contract declarations
-    const stakingContract = new web3.eth.Contract(
-      stakingAbi,
-      stakingContractAddress
-    );
+  const stakingContract = new web3.eth.Contract(
+	  stakingAbi, 
+	  stakingContractAddressIgnoreFud
+  );
 
     stakingContract.methods
       .claimRewards()
@@ -250,16 +265,17 @@ async function claimRewards() {
   updateData(accounts[0]);
 }
 
-async function checkRewards() {
+async function checkRewardsIgnoreFud() {
   try {
     // Check and change to BSC Testnet if required
     checkAndSwitchChain();
 
     // Contract declarations
-    const stakingContract = new web3.eth.Contract(
-      stakingAbi,
-      stakingContractAddress
-    );
+const stakingContract = new web3.eth.Contract(
+	stakingAbi,
+	stakingContractAddressIgnoreFud
+);
+
     let reward = await stakingContract.methods
       .userStakeRewards(accounts[0])
       .call();
@@ -282,7 +298,152 @@ async function checkRewards() {
   }
 }
 
-// Attach event to image
+/*
+   _____ _           _        _____ _____ _______ 
+  / ____| |         (_)      / ____|  __ \__   __|
+ | |    | |__   __ _ _ _ __ | |  __| |__) | | |   
+ | |    | '_ \ / _` | | '_ \| | |_ |  ___/  | |   
+ | |____| | | | (_| | | | | | |__| | |      | |   
+  \_____|_| |_|\__,_|_|_| |_|\_____|_|      |_|   
+                                                  
+Functions for "Ignore Fud" pool
+*/
+async function stakeTokenChainGPT() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddressChainGPT);
+
+	const myNftContract = new web3.eth.Contract(
+	    nftAbi, 
+	    nftContractAddress
+	);
+	  
+    let tokenInputField = document.querySelector(".token-id-input");
+    let tokenIds = tokenInputField.value.split(",").map(Number);
+    tokenInputField.value = ""; // clear the input field after reading the value
+
+    // Approve all NFTs for staking
+    await myNftContract.methods
+      .setApprovalForAll(stakingContractAddress, true)
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(`NFTs approved for staking!`);
+      })
+      .on("error", function (error, receipt) {
+        console.log(`Error approving NFTs for staking`);
+      });
+
+    stakingContract.methods
+      .stake(tokenIds)
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(receipt);
+        alert("Success!");
+      })
+      .on("error", function (error, receipt) {
+        console.log(error);
+      });
+  } catch (error) {
+    alert(
+      `An error occurred while staking your tokens. Please try again. Error details: ${error.message}`
+    );
+  }
+  updateData(accounts[0]);
+}
+
+async function unstakeTokenChainGPT() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+	const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddressChainGPT);
+
+    let tokenInputField = document.querySelector(".token-id-input");
+    let tokenIds = tokenInputField.value.split(",").map(Number);
+    tokenInputField.value = ""; // clear the input field after reading the value
+
+    stakingContract.methods
+      .withdraw(tokenIds)
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(receipt);
+        alert("Success!");
+      })
+      .on("error", function (error, receipt) {
+        console.log(error);
+      });
+  } catch (error) {
+    alert(
+      `An error occurred while unstaking your tokens. Please try again. Error: ${error.message}`
+    );
+  }
+  updateData(accounts[0]);
+}
+
+async function claimRewardsChainGPT() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddressChainGPT);
+
+    stakingContract.methods
+      .claimRewards()
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(receipt);
+        alert("Success!");
+      })
+      .on("error", function (error, receipt) {
+        console.log(error);
+      });
+  } catch (error) {
+    alert(
+      `An error occurred while claiming your rewards. Please try again. Error: ${error.message}`
+    );
+  }
+  updateData(accounts[0]);
+}
+
+async function checkRewardsIgnoreFud() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+const stakingContract = new web3.eth.Contract(
+	stakingAbi,
+	stakingContractAddressIgnoreFud
+);
+
+    let reward = await stakingContract.methods
+      .userStakeRewards(accounts[0])
+      .call();
+    reward = web3.utils.fromWei(reward, "ether");
+
+    // Convert the reward to a floating point number
+    let rewardFloat = parseFloat(reward);
+
+    // Use Math.floor() to round down
+    let flooredReward = Math.floor(rewardFloat);
+
+    // Convert the number to a string with commas
+    let formattedReward = flooredReward.toLocaleString();
+
+    alert(`You have earned a total of: ${formattedReward} $4TOKEN!`);
+  } catch (error) {
+    alert(
+      `An error occurred while checking your rewards. Please try again. Error: ${error.message}`
+    );
+  }
+}
+
+// Attach event to image for "IgnoreFud" pool
 const stakeButton = document.querySelector(".stake");
 stakeButton.addEventListener("click", stakeToken);
 
@@ -294,6 +455,23 @@ claimButton.addEventListener("click", claimRewards);
 
 const checkButton = document.querySelector(".check");
 checkButton.addEventListener("click", checkRewards);
+
+let totalStakesElement = document.querySelector("#total-staked");
+let userStakesElement = document.querySelector("#user-staked");
+let userStakedTokensElement = document.querySelector("#staked-tokens");
+
+// Attach event to image for "Chain GPT" pool
+const stakeButtonChainGPT = document.querySelector(".stake-chain-gpt");
+stakeButtonChainGPT.addEventListener("click", stakeTokenChainGPT);
+
+const unstakeButtonChainGPT = document.querySelector(".unstake-chain-gpt");
+unstakeButtonChainGPT.addEventListener("click", unstakeTokenChainGPT);
+
+const claimButtonChainGPT = document.querySelector(".claim-chain-gpt");
+claimButtonChainGPT.addEventListener("click", claimRewardsChainGPT);
+
+const checkButtonChainGPT = document.querySelector(".check-chain-gpt");
+checkButtonChainGPT.addEventListener("click", checkRewardsChainGPT);
 
 let totalStakesElement = document.querySelector("#total-staked");
 let userStakesElement = document.querySelector("#user-staked");
