@@ -1,0 +1,85 @@
+<script>
+    let accounts;
+    const rpcUrl = "https://bsc.rpc.blxrbdn.com/";
+    const chainId = "0x38";
+    const stakingContractAddresses = {
+        "4token": "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D",
+        "ChainGPT": "0x136080F5f31f620B3cf331bc83c059043bAe3331"
+    };
+    let stakingContractAddress = stakingContractAddresses["4token"];
+
+    window.addEventListener("load", async () => {
+        window.web3 = window.ethereum ? new Web3(ethereum) : new Web3(new Web3.providers.HttpProvider(rpcUrl));
+        try {
+            accounts = await web3.eth.getAccounts();
+            if (!accounts.length) throw new Error("No accounts found. Please ensure you're connected to the network.");
+            updateData(accounts[0]);
+        } catch (e) {
+            console.error("Error fetching accounts:", e.message);
+            alert("Error fetching accounts. Please ensure you're connected and try again.");
+        }
+    });
+
+    async function updateData(account) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        try {
+            totalStakesElement.textContent = await stakingContract.methods.totalStakedSupply().call();
+            const userStakes = await stakingContract.methods.userStakedTokens(account).call();
+            userStakesElement.textContent = userStakes.length;
+            userStakedTokensElement.textContent = userStakes;
+        } catch (error) {
+            alert(`Failed to update data! Error: ${error.message}`);
+        }
+    }
+
+    async function checkAndSwitchChain() {
+        if (await web3.eth.getChainId() !== chainId) {
+            try {
+                await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
+            } catch (switchError) {
+                console.error(switchError);
+            }
+        }
+    }
+
+    async function handleTokenAction(pool, action) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        const inputField = document.querySelector(`#TokenIdInput${pool === "4token" ? "Fud" : "Chain"}`);
+        const tokenIds = inputField.value.split(',').map(id => {
+            const parsedId = parseInt(id.trim());
+            if (isNaN(parsedId)) throw new Error("Invalid Token ID provided");
+            return parsedId;
+        });
+
+        try {
+            let result;
+            switch (action) {
+                case "stake":
+                    result = await stakingContract.methods.stake(tokenIds).send({ from: accounts[0] });
+                    break;
+                case "unstake":
+                    result = await stakingContract.methods.withdraw(tokenIds).send({ from: accounts[0] });
+                    break;
+                case "claim":
+                    result = await stakingContract.methods.claimRewards().send({ from: accounts[0] });
+                    break;
+                case "check":
+                    result = await stakingContract.methods.userStakeRewards(accounts[0]).call();
+                    break;
+            }
+            console.log(`${action.charAt(0).toUpperCase() + action.slice(1)} ${pool}:`, result);
+        } catch (error) {
+            console.error(`Error ${action} ${pool}:`, error);
+            alert(`Error ${action} ${pool}. Please try again.`);
+        }
+    }
+
+    ["stake", "unstake", "claim", "check"].forEach(action => {
+        ["fud", "chain-gpt"].forEach(pool => {
+            document.querySelector(`.${action}-${pool}`).addEventListener("click", async () => {
+                await checkAndSwitchChain();
+                await handleTokenAction(pool, action);
+            });
+        });
+    });
+</script>
