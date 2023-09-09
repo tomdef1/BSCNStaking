@@ -1,0 +1,302 @@
+<script>
+
+// Load Web3
+window.addEventListener("load", async () => {
+  if (window.ethereum) {
+    window.web3 = new Web3(ethereum);
+    try {
+      await ethereum.request({
+        method: "eth_requestAccounts",
+      });
+    } catch (e) {
+      console.error("User denied account access");
+    }
+  } else
+    window.web3
+      ? (window.web3 = new Web3(web3.currentProvider))
+      : alert("Non-Ethereum browser detected. Consider installing MetaMask");
+
+  accounts = await web3.eth.getAccounts();
+  updateData(accounts[0]);
+});
+
+let accounts;
+// Staking contract details
+const stakingContractAddress = "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D";
+const stakingAbi = [
+  {
+    inputs: [
+      { internalType: "address", name: "_nftCollection", type: "address" },
+      { internalType: "address", name: "_rewardToken", type: "address" },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [{ internalType: "uint256[]", name: "tokenIds", type: "uint256[]" }],
+    name: "stake",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalStakedSupply",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256[]", name: "tokenIds", type: "uint256[]" },
+    ],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "_user", type: "address" }],
+    name: "userStakedTokens",
+    outputs: [
+      { internalType: "uint256[]", name: "_tokensStaked", type: "uint256[]" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "claimRewards",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "_user", type: "address" }],
+    name: "userStakeRewards",
+    outputs: [{ internalType: "uint256", name: "_rewardAmount", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+	},
+];
+
+//NFT contract details
+const nftContractAddress = "0xD15360dEF9f520c4b6449299d24C5Be08751307E";
+const nftAbi = [
+  {
+    inputs: [
+      { internalType: "address", name: "operator", type: "address" },
+      { internalType: "bool", name: "approved", type: "bool" },
+    ],
+    name: "setApprovalForAll",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
+// Binance Smart Chain Mainnet Configuration
+const networkId = "0x38"; // Binance Smart Chain Mainnet ID in hexadecimal
+const chainId = "0x38"; // Binance Smart Chain Mainnet Chain ID in hexadecimal
+const rpcUrl = "https://bsc-dataseed.binance.org/"; // Binance Smart Chain Mainnet RPC URL
+
+async function updateData(account) {
+  try {
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(
+      stakingAbi,
+      stakingContractAddress
+    );
+
+    let totalStakes = await stakingContract.methods.totalStakedSupply().call();
+    totalStakesElement.textContent = totalStakes;
+
+    let userStakesCount = (
+      await stakingContract.methods.userStakedTokens(account).call()
+    ).length;
+    userStakesElement.textContent = userStakesCount;
+
+    let userStakedTokens = await stakingContract.methods
+      .userStakedTokens(account)
+      .call();
+    userStakedTokensElement.textContent = userStakedTokens;
+  } catch (error) {
+    alert(
+      `Failed to dynamically update relevant variables! Error: ${error.message}`
+    );
+  }
+}
+
+async function checkAndSwitchChain() {
+  const currentChainIdHex = await web3.eth.getChainId();
+  if (currentChainIdHex !== chainId) {
+    try {
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainId }],
+      });
+    } catch (switchError) {
+      console.error(switchError);
+    }
+  }
+}
+
+// Staking Function
+async function stakeToken() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(
+      stakingAbi,
+      stakingContractAddress
+    );
+
+    const myNftContract = new web3.eth.Contract(nftAbi, nftContractAddress);
+
+    let tokenInputField = document.querySelector(".token-id-input");
+    let tokenIds = tokenInputField.value.split(",").map(Number);
+    tokenInputField.value = ""; // clear the input field after reading the value
+
+    // Approve all NFTs for staking
+    await myNftContract.methods
+      .setApprovalForAll(stakingContractAddress, true)
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(`NFTs approved for staking!`);
+      })
+      .on("error", function (error, receipt) {
+        console.log(`Error approving NFTs for staking`);
+      });
+
+    stakingContract.methods
+      .stake(tokenIds)
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(receipt);
+        alert("Success!");
+      })
+      .on("error", function (error, receipt) {
+        console.log(error);
+      });
+  } catch (error) {
+    alert(
+      `An error occurred while staking your tokens. Please try again. Error details: ${error.message}`
+    );
+  }
+  updateData(accounts[0]);
+}
+
+async function unstakeToken() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(
+      stakingAbi,
+      stakingContractAddress
+    );
+
+    let tokenInputField = document.querySelector(".token-id-input");
+    let tokenIds = tokenInputField.value.split(",").map(Number);
+    tokenInputField.value = ""; // clear the input field after reading the value
+
+    stakingContract.methods
+      .withdraw(tokenIds)
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(receipt);
+        alert("Success!");
+      })
+      .on("error", function (error, receipt) {
+        console.log(error);
+      });
+  } catch (error) {
+    alert(
+      `An error occurred while unstaking your tokens. Please try again. Error: ${error.message}`
+    );
+  }
+  updateData(accounts[0]);
+}
+
+async function claimRewards() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(
+      stakingAbi,
+      stakingContractAddress
+    );
+
+    stakingContract.methods
+      .claimRewards()
+      .send({ from: accounts[0] })
+      .on("receipt", function (receipt) {
+        console.log(receipt);
+        alert("Success!");
+      })
+      .on("error", function (error, receipt) {
+        console.log(error);
+      });
+  } catch (error) {
+    alert(
+      `An error occurred while claiming your rewards. Please try again. Error: ${error.message}`
+    );
+  }
+  updateData(accounts[0]);
+}
+
+async function checkRewards() {
+  try {
+    // Check and change to BSC Testnet if required
+    checkAndSwitchChain();
+
+    // Contract declarations
+    const stakingContract = new web3.eth.Contract(
+      stakingAbi,
+      stakingContractAddress
+    );
+    let reward = await stakingContract.methods
+      .userStakeRewards(accounts[0])
+      .call();
+    reward = web3.utils.fromWei(reward, "ether");
+
+    // Convert the reward to a floating point number
+    let rewardFloat = parseFloat(reward);
+
+    // Use Math.floor() to round down
+    let flooredReward = Math.floor(rewardFloat);
+
+    // Convert the number to a string with commas
+    let formattedReward = flooredReward.toLocaleString();
+
+    alert(`You have earned a total of: ${formattedReward} $4TOKEN!`);
+  } catch (error) {
+    alert(
+      `An error occurred while checking your rewards. Please try again. Error: ${error.message}`
+    );
+  }
+}
+
+// Attach event to image
+const stakeButton = document.querySelector(".stake");
+stakeButton.addEventListener("click", stakeToken);
+
+const unstakeButton = document.querySelector(".unstake");
+unstakeButton.addEventListener("click", unstakeToken);
+
+const claimButton = document.querySelector(".claim");
+claimButton.addEventListener("click", claimRewards);
+
+const checkButton = document.querySelector(".check");
+checkButton.addEventListener("click", checkRewards);
+
+let totalStakesElement = document.querySelector("#total-staked");
+let userStakesElement = document.querySelector("#user-staked");
+let userStakedTokensElement = document.querySelector("#staked-tokens");
+
+</script>
