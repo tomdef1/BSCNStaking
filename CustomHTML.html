@@ -1,27 +1,32 @@
 <script>
-    let accounts;
+let accounts;
 
-    // Load Web3
-    window.addEventListener("load", async () => {
-        if (window.ethereum) {
-            window.web3 = new Web3(ethereum);
-            try {
-                accounts = await web3.eth.getAccounts();
+// Load Web3
+window.addEventListener("load", async () => {
+    if (window.ethereum) {
+        window.web3 = new Web3(ethereum);
+        try {
+            accounts = await web3.eth.getAccounts();
 
+            if (!accounts || accounts.length === 0) {
+                // Request user to connect their MetaMask account
+                accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                
                 if (!accounts || accounts.length === 0) {
                     throw new Error("No accounts found. Please ensure you're connected to the network.");
                 }
-
-                updateData(accounts[0]);
-            } catch (e) {
-                console.error("Error fetching accounts:", e.message);
-                alert("Error fetching accounts. Please ensure you're connected and try again.");
             }
-        } else {
-            alert("Non-Ethereum browser detected. Consider installing MetaMask");
-            window.web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
+
+            updateData(accounts[0]);
+        } catch (e) {
+            console.error("Error fetching accounts:", e.message);
+            alert("Error fetching accounts. Please ensure you're connected and try again.");
         }
-    });
+    } else {
+        alert("Non-Ethereum browser detected. Consider installing MetaMask");
+        window.web3 = new Web3(new Web3.providers.HttpProvider(rpcUrl));
+    }
+});
 
     // Staking contract details for "Ignore Fud" pool
     const stakingContractAddressIgnoreFud = "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D";
