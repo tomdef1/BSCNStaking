@@ -57,7 +57,9 @@
                     }
                 }
 
-                updateData(accounts[0]);
+                // Update data for both pools
+                updateData(accounts[0], stakingContractAddressIgnoreFud);
+                updateData(accounts[0], stakingContractAddressChainGPT);
             } catch (e) {
                 console.error("Error fetching accounts:", e.message);
                 alert("Error fetching accounts. Please ensure you're connected and try again.");
@@ -136,24 +138,39 @@
             stakingContractAddress = stakingContractAddressIgnoreFud;
         }
     }
-    async function updateData(account) {
+    // Elements for "Ignore Fud" pool
+    const totalStakesElementFud = document.getElementById('total-staked-Fud');
+    const userStakesElementFud = document.getElementById('user-staked-Fud');
+    const userStakedTokensElementFud = document.getElementById('staked-tokens-Fud');
+
+    // Elements for "Chain GPT" pool
+    const totalStakesElementChain = document.getElementById('total-staked-Chain');
+    const userStakesElementChain = document.getElementById('user-staked-Chain');
+    const userStakedTokensElementChain = document.getElementById('staked-tokens-Chain');
+
+    // Dynamic Text
+    async function updateData(account, stakingAddress) {
         try {
             // Contract declarations
-            const stakingContract = new web3.eth.Contract(
-                stakingAbi,
-                stakingContractAddress
-            );
-            let totalStakes = await stakingContract.methods.totalStakedSupply().call();
-            totalStakesElement.textContent = totalStakes;
+            const stakingContract = new web3.eth.Contract(stakingAbi, stakingAddress);
 
+            let totalStakes = await stakingContract.methods.totalStakedSupply().call();
             let userStakesCount = (
                 await stakingContract.methods.userStakedTokens(account).call()
             ).length;
-            userStakesElement.textContent = userStakesCount;
             let userStakedTokens = await stakingContract.methods
                 .userStakedTokens(account)
                 .call();
-            userStakedTokensElement.textContent = userStakedTokens;
+
+            if (stakingAddress === stakingContractAddressIgnoreFud) {
+                totalStakesElementFud.textContent = totalStakes;
+                userStakesElementFud.textContent = userStakesCount;
+                userStakedTokensElementFud.textContent = userStakedTokens.join(', ');
+            } else if (stakingAddress === stakingContractAddressChainGPT) {
+                totalStakesElementChain.textContent = totalStakes;
+                userStakesElementChain.textContent = userStakesCount;
+                userStakedTokensElementChain.textContent = userStakedTokens.join(', ');
+            }
         } catch (error) {
             alert(
                 `Failed to dynamically update relevant variables! Error: ${error.message}`
