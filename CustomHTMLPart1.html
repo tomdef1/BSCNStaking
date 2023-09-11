@@ -1,0 +1,188 @@
+<script>
+    let accounts;
+
+    // Initialize web3
+    const web3 = new Web3(window.ethereum);
+
+    //NFT contract details
+    const nftAbi = [
+        {
+            inputs: [
+                { internalType: "address", name: "operator", type: "address" },
+                { internalType: "bool", name: "approved", type: "bool" },
+            ],
+            name: "setApprovalForAll",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            "constant": true,
+            "inputs": [
+                { "name": "_owner", "type": "address" },
+                { "name": "_operator", "type": "address" }
+            ],
+            "name": "isApprovedForAll",
+            "outputs": [{ "name": "", "type": "bool" }],
+            "payable": false,
+            "stateMutability": "view",
+            "type": "function"
+        }
+    ];
+    const nftContractAddress = "0xD15360dEF9f520c4b6449299d24C5Be08751307E";
+
+    // Initialize the nftContract
+    const nftContract = new web3.eth.Contract(nftAbi, nftContractAddress);
+
+    const totalStakesElement = document.getElementById('totalStakes');
+    const userStakesElement = document.getElementById('userStakes');
+    const userStakedTokensElement = document.getElementById('userStakedTokens');
+
+    // BSC Mainnet Configuration
+    const networkId = "0x38";
+    const chainId = "0x38";
+    const rpcUrl = "https://bsc.rpc.blxrbdn.com/";
+
+    window.addEventListener("load", async () => {
+        if (window.ethereum) {
+            try {
+                accounts = await web3.eth.getAccounts();
+
+                if (!accounts || accounts.length === 0) {
+                    // Request user to connect their MetaMask account
+                    accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+
+                    if (!accounts || accounts.length === 0) {
+                        throw new Error("No accounts found. Please ensure you're connected to the network.");
+                    }
+                }
+
+                updateData(accounts[0]);
+            } catch (e) {
+                console.error("Error fetching accounts:", e.message);
+                alert("Error fetching accounts. Please ensure you're connected and try again.");
+            }
+        }
+    });
+
+
+    // Staking contract details for "Ignore Fud" pool
+    const stakingContractAddressIgnoreFud = "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D";
+    // Staking contract details for "Chain GPT" pool
+    const stakingContractAddressChainGPT = "0x136080F5f31f620B3cf331bc83c059043bAe3331";
+    let stakingContractAddress = stakingContractAddressIgnoreFud; // Default
+
+    const stakingAbi = [
+        {
+            inputs: [
+                { internalType: "address", name: "_nftCollection", type: "address" },
+                { internalType: "address", name: "_rewardToken", type: "address" },
+            ],
+            stateMutability: "nonpayable",
+            type: "constructor",
+        },
+        {
+            inputs: [{ internalType: "uint256[]", name: "tokenIds", type: "uint256[]" }],
+            name: "stake",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            inputs: [],
+            name: "totalStakedSupply",
+            outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+        },
+        {
+            inputs: [
+                { internalType: "uint256[]", name: "tokenIds", type: "uint256[]" },
+            ],
+            name: "withdraw",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            inputs: [{ internalType: "address", name: "_user", type: "address" }],
+            name: "userStakedTokens",
+            outputs: [
+                { internalType: "uint256[]", name: "_tokensStaked", type: "uint256[]" },
+            ],
+            stateMutability: "view",
+            type: "function",
+        },
+        {
+            inputs: [],
+            name: "claimRewards",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            inputs: [{ internalType: "address", name: "_user", type: "address" }],
+            name: "userStakeRewards",
+            outputs: [{ internalType: "uint256", name: "_rewardAmount", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+        },
+    ];
+
+    function setStakingContract(contractChoice) {
+        if (contractChoice === "ChainGPT") {
+            stakingContractAddress = stakingContractAddressChainGPT;
+        } else if (contractChoice === "4token") {
+            stakingContractAddress = stakingContractAddressIgnoreFud;
+        }
+    }
+    async function updateData(account) {
+        try {
+            // Contract declarations
+            const stakingContract = new web3.eth.Contract(
+                stakingAbi,
+                stakingContractAddress
+            );
+            let totalStakes = await stakingContract.methods.totalStakedSupply().call();
+            totalStakesElement.textContent = totalStakes;
+
+            let userStakesCount = (
+                await stakingContract.methods.userStakedTokens(account).call()
+            ).length;
+            userStakesElement.textContent = userStakesCount;
+            let userStakedTokens = await stakingContract.methods
+                .userStakedTokens(account)
+                .call();
+            userStakedTokensElement.textContent = userStakedTokens;
+        } catch (error) {
+            alert(
+                `Failed to dynamically update relevant variables! Error: ${error.message}`
+            );
+        }
+    }
+    async function checkAndSwitchChain() {
+        const currentChainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+        if (currentChainIdHex !== chainId) {
+            try {
+                await ethereum.request({
+                    method: "wallet_switchEthereumChain",
+                    params: [{ chainId: chainId }],
+                });
+            } catch (switchError) {
+                console.error(switchError);
+            }
+        }
+    }
+    async function approveNFTForStaking(stakingAddress) {
+        try {
+            const isApproved = await nftContract.methods.isApprovedForAll(accounts[0], stakingAddress).call();
+            if (!isApproved) {
+                await nftContract.methods.setApprovalForAll(stakingAddress, true).send({ from: accounts[0] });
+                console.log('NFT approval successful for', stakingAddress);
+            }
+        } catch (error) {
+            console.error('NFT approval failed', error);
+            alert('Failed to approve NFT for staking. Please try again.');
+        }
+    }
+</script>
