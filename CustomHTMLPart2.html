@@ -1,0 +1,212 @@
+<script>
+
+    //Functions
+
+    async function stakeToken(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        let tokenIds;
+
+        //FUD STAKING
+        if (pool === "4token") {
+            // Fetch token IDs from the 'Token Id Input Fud' input field
+            tokenIds = document.querySelector('.token-id-input-fud').value.split(',').map(id => {
+                const parsedId = parseInt(id.trim());
+                if (isNaN(parsedId)) {
+                    throw new Error("Invalid Token ID provided");
+                }
+                return parsedId;
+            });
+
+            // Logic for staking in "Ignore Fud" pool
+            await approveNFTForStaking(stakingContractAddressIgnoreFud);
+            try {
+                const receipt = await stakingContract.methods.stake(tokenIds).send({ from: accounts[0] });
+                console.log('Staked successfully in Ignore Fud pool:', receipt);
+            } catch (error) {
+                console.error('Error staking in Ignore Fud pool:', error);
+            }
+
+            //CHAIN STAKING
+        } else if (pool === "ChainGPT") {
+            // Fetch token IDs from the 'Token ID Input Chain' input field
+            tokenIds = document.querySelector('.token-id-input-chain').value.split(',').map(id => {
+                const parsedId = parseInt(id.trim());
+                if (isNaN(parsedId)) {
+                    throw new Error("Invalid Token ID provided");
+                }
+                return parsedId;
+            });
+
+            // Logic for staking in "ChainGPT" pool
+            await approveNFTForStaking(stakingContractAddressChainGPT);
+            try {
+                const receipt = await stakingContract.methods.stake(tokenIds).send({ from: accounts[0] });
+                console.log('Staked successfully in ChainGPT pool:', receipt);
+            } catch (error) {
+                console.error('Error staking in ChainGPT pool:', error);
+            }
+        }
+    }
+
+
+    async function unstakeToken(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        let tokenIds;
+
+        if (pool === "4token") {
+            // Fetch token IDs from the 'Token Id Input Fud' input field
+            tokenIds = document.querySelector('.token-id-input-fud').value.split(',').map(id => parseInt(id.trim()));
+
+            // Logic for unstaking in "Ignore Fud" pool
+            try {
+                const receipt = await stakingContract.methods.withdraw(tokenIds).send({ from: accounts[0] });
+                console.log('Unstaked successfully from Ignore Fud pool:', receipt);
+            } catch (error) {
+                console.error('Error unstaking from Ignore Fud pool:', error);
+            }
+        } else if (pool === "ChainGPT") {
+            // Fetch token IDs from the 'Token ID Input Chain' input field
+            tokenIds = document.querySelector('.token-id-input-chain').value.split(',').map(id => parseInt(id.trim()));
+
+            // Logic for unstaking in "ChainGPT" pool
+            try {
+                const receipt = await stakingContract.methods.withdraw(tokenIds).send({ from: accounts[0] });
+                console.log('Unstaked successfully from ChainGPT pool:', receipt);
+            } catch (error) {
+                console.error('Error unstaking from ChainGPT pool:', error);
+            }
+        }
+    }
+
+
+    async function claimRewards(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        if (pool === "4token") {
+            // Logic for claiming rewards in "Ignore Fud" pool
+            try {
+                const receipt = await stakingContract.methods.claimRewards().send({ from: accounts[0] });
+                console.log('Rewards claimed successfully from Ignore Fud pool:', receipt);
+            } catch (error) {
+                console.error('Error claiming rewards from Ignore Fud pool:', error);
+            }
+        } else if (pool === "ChainGPT") {
+            // Logic for claiming rewards in "ChainGPT" pool
+            try {
+                const receipt = await stakingContract.methods.claimRewards().send({ from: accounts[0] });
+                console.log('Rewards claimed successfully from ChainGPT pool:', receipt);
+            } catch (error) {
+                console.error('Error claiming rewards from ChainGPT pool:', error);
+            }
+        }
+    }
+
+    async function checkRewards(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        if (pool === "4token") {
+            // Logic for checking rewards in "Ignore Fud" pool
+            try {
+                const rewards = await stakingContract.methods.userStakeRewards(accounts[0]).call();
+                console.log('Rewards for Ignore Fud pool:', rewards);
+            } catch (error) {
+                console.error('Error checking rewards for Ignore Fud pool:', error);
+            }
+        } else if (pool === "ChainGPT") {
+            // Logic for checking rewards in "ChainGPT" pool
+            try {
+                const rewards = await stakingContract.methods.userStakeRewards(accounts[0]).call();
+                console.log('Rewards for ChainGPT pool:', rewards);
+            } catch (error) {
+                console.error('Error checking rewards for ChainGPT pool:', error);
+            }
+        }
+    }
+    // enhanced (buttons) event listeners
+    document.querySelector(".action-button.stakefud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await stakeToken("4token");
+    } catch (error) {
+        console.error("Error staking FUD token:", error);
+        alert("Error staking FUD token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.unstakefud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await unstakeToken("4token");
+    } catch (error) {
+        console.error("Error unstaking FUD token:", error);
+        alert("Error unstaking FUD token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.claimfud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await claimRewards("4token");
+    } catch (error) {
+        console.error("Error claiming rewards for FUD token:", error);
+        alert("Error claiming rewards for FUD token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.checkfud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await checkRewards("4token");
+    } catch (error) {
+        console.error("Error checking rewards for FUD token:", error);
+        alert("Error checking rewards for FUD token. Please try again.");
+    }
+});
+
+// Event listeners for "ChainGPT" pool
+document.querySelector(".action-button.stakechain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await stakeToken("ChainGPT");
+    } catch (error) {
+        console.error("Error staking ChainGPT token:", error);
+        alert("Error staking ChainGPT token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.unstakechain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await unstakeToken("ChainGPT");
+    } catch (error) {
+        console.error("Error unstaking ChainGPT token:", error);
+        alert("Error unstaking ChainGPT token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.claimchain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await claimRewards("ChainGPT");
+    } catch (error) {
+        console.error("Error claiming rewards for ChainGPT token:", error);
+        alert("Error claiming rewards for ChainGPT token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.checkchain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await checkRewards("ChainGPT");
+    } catch (error) {
+        console.error("Error checking rewards for ChainGPT token:", error);
+        alert("Error checking rewards for ChainGPT token. Please try again.");
+    }
+});
+</script>
