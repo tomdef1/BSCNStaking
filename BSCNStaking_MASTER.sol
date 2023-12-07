@@ -8,6 +8,11 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+constructor(address _nftCollection, address _rewardToken) payable Ownable(msg.sender) {
+    nftCollection = IERC721(_nftCollection);
+    rewardToken = IERC20(_rewardToken);
+}
+
 contract BSCNewsNFTStaking is ERC721Holder, ReentrancyGuard, Ownable {
     error StakingClosed();
 
