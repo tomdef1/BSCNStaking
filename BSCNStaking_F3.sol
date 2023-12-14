@@ -36,10 +36,10 @@ contract BSCNewsNFTStaking is ERC721Holder, ReentrancyGuard, Ownable {
     mapping(address => uint256[]) private tokensStaked;
     mapping(uint256 => uint256) public tokenIdToIndex;
 
-    constructor(address _nftCollection, address _rewardToken) payable {
-        nftCollection = IERC721(_nftCollection);
-        rewardToken = IERC20(_rewardToken);
-    }
+constructor(address _nftCollection, address _rewardToken, address _owner) Ownable(_owner) payable {
+    nftCollection = IERC721(_nftCollection);
+    rewardToken = IERC20(_rewardToken);
+}
 
     function recoverTokens(address _token) external onlyOwner {
         uint256 bal = IERC20(_token).balanceOf(address(this));
