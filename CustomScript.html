@@ -1,0 +1,542 @@
+<script>
+    let accounts;
+
+    // Initialize web3
+    const web3 = new Web3(window.ethereum);
+
+    //NFT contract details
+    const nftAbi = [
+        {
+            inputs: [
+                { internalType: "address", name: "operator", type: "address" },
+                { internalType: "bool", name: "approved", type: "bool" },
+            ],
+            name: "setApprovalForAll",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            "constant": true,
+            "inputs": [
+                { "name": "_owner", "type": "address" },
+                { "name": "_operator", "type": "address" }
+            ],
+            "name": "isApprovedForAll",
+            "outputs": [{ "name": "", "type": "bool" }],
+            "payable": false,
+            "stateMutability": "view",
+            "type": "function"
+        }
+    ];
+    const nftContractAddress = "0xD15360dEF9f520c4b6449299d24C5Be08751307E";
+
+    // Initialize the nftContract
+    const nftContract = new web3.eth.Contract(nftAbi, nftContractAddress);
+
+    const totalStakesElement = document.getElementById('totalStakes');
+    const userStakesElement = document.getElementById('userStakes');
+    const userStakedTokensElement = document.getElementById('userStakedTokens');
+
+    // BSC Mainnet Configuration
+    const networkId = "0x38";
+    const chainId = "0x38";
+    const rpcUrl = "https://bsc.rpc.blxrbdn.com/";
+
+    window.addEventListener("load", async () => {
+        if (window.ethereum) {
+            try {
+                accounts = await web3.eth.getAccounts();
+
+                if (!accounts || accounts.length === 0) {
+                    // Request user to connect their MetaMask account
+                    accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+
+                    if (!accounts || accounts.length === 0) {
+                        throw new Error("No accounts connected. Please ensure you're connected to the correct network.");
+                    }
+                }
+
+                // Update data for both pools
+                updateData(accounts[0], stakingContractAddressIgnoreFud);
+                updateData(accounts[0], stakingContractAddressChainGPT);
+                updateData(accounts[0], stakingContractAddressF3);
+            } catch (e) {
+                console.error("Error fetching accounts:", e.message);
+                alert("Error fetching connected accounts. Please ensure you're connected to the correct network and try again.");
+            }
+        }
+    });
+
+
+    // Staking contract details for "Ignore Fud" pool
+    const stakingContractAddressIgnoreFud = "0xe1ffa6019F8C9aD629E1bC9997723565D0Dd2E0D";
+    // Staking contract details for "Chain GPT" pool
+    const stakingContractAddressChainGPT = "0x136080F5f31f620B3cf331bc83c059043bAe3331";
+    // Staking contract details for "F3" pool
+    const stakingContractAddressF3 = "0x886f6A2Cb429F4746B587535A9DF4768491146C7";
+    
+    let stakingContractAddress = stakingContractAddressIgnoreFud; // Default
+
+    const stakingAbi = [
+        {
+            inputs: [
+                { internalType: "address", name: "_nftCollection", type: "address" },
+                { internalType: "address", name: "_rewardToken", type: "address" },
+            ],
+            stateMutability: "nonpayable",
+            type: "constructor",
+        },
+        {
+            inputs: [{ internalType: "uint256[]", name: "tokenIds", type: "uint256[]" }],
+            name: "stake",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            inputs: [],
+            name: "totalStakedSupply",
+            outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+        },
+        {
+            inputs: [
+                { internalType: "uint256[]", name: "tokenIds", type: "uint256[]" },
+            ],
+            name: "withdraw",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            inputs: [{ internalType: "address", name: "_user", type: "address" }],
+            name: "userStakedTokens",
+            outputs: [
+                { internalType: "uint256[]", name: "_tokensStaked", type: "uint256[]" },
+            ],
+            stateMutability: "view",
+            type: "function",
+        },
+        {
+            inputs: [],
+            name: "claimRewards",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+        },
+        {
+            inputs: [{ internalType: "address", name: "_user", type: "address" }],
+            name: "userStakeRewards",
+            outputs: [{ internalType: "uint256", name: "_rewardAmount", type: "uint256" }],
+            stateMutability: "view",
+            type: "function",
+        },
+    ];
+
+    function setStakingContract(contractChoice) {
+        if (contractChoice === "ChainGPT") {
+            stakingContractAddress = stakingContractAddressChainGPT;
+        } else if (contractChoice === "4token") {
+            stakingContractAddress = stakingContractAddressIgnoreFud;
+        } else if (contractChoice === "F3") {
+            stakingContractAddress = stakingContractAddressF3;
+        }
+    }
+    // Elements for "Ignore Fud" pool
+    const totalStakesElementFud = document.getElementById('total-staked-Fud');
+    const userStakesElementFud = document.getElementById('user-staked-Fud');
+    const userStakedTokensElementFud = document.getElementById('staked-tokens-Fud');
+
+    // Elements for "Chain GPT" pool
+    const totalStakesElementChain = document.getElementById('total-staked-Chain');
+    const userStakesElementChain = document.getElementById('user-staked-Chain');
+    const userStakedTokensElementChain = document.getElementById('staked-tokens-Chain');
+    
+    // Elements for "F3" pool
+    const totalStakesElementF3 = document.getElementById('total-staked-F3');
+    const userStakesElementF3 = document.getElementById('user-staked-F3');
+    const userStakedTokensElementF3 = document.getElementById('staked-tokens-F3');
+
+    // Dynamic Text
+    async function updateData(account, stakingAddress) {
+        try {
+            // Contract declarations
+            const stakingContract = new web3.eth.Contract(stakingAbi, stakingAddress);
+
+            let totalStakes = await stakingContract.methods.totalStakedSupply().call();
+            let userStakesCount = (
+                await stakingContract.methods.userStakedTokens(account).call()
+            ).length;
+            let userStakedTokens = await stakingContract.methods
+                .userStakedTokens(account)
+                .call();
+
+            if (stakingAddress === stakingContractAddressIgnoreFud) {
+                totalStakesElementFud.textContent = totalStakes;
+                userStakesElementFud.textContent = userStakesCount;
+                userStakedTokensElementFud.textContent = userStakedTokens.join(', ');
+            } else if (stakingAddress === stakingContractAddressChainGPT) {
+                totalStakesElementChain.textContent = totalStakes;
+                userStakesElementChain.textContent = userStakesCount;
+                userStakedTokensElementChain.textContent = userStakedTokens.join(', ');
+            } else if (stakingAddress === stakingContractAddressF3) {
+                totalStakesElementF3.textContent = totalStakes;
+                userStakesElementF3.textContent = userStakesCount;
+                userStakedTokensElementF3.textContent = userStakedTokens.join(', ');
+            }
+        } catch (error) {
+            alert(
+                `Failed to dynamically update relevant variables! Error: ${error.message}`
+            );
+        }
+    }
+    async function checkAndSwitchChain() {
+        const currentChainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+        if (currentChainIdHex !== chainId) {
+            try {
+                await ethereum.request({
+                    method: "wallet_switchEthereumChain",
+                    params: [{ chainId: chainId }],
+                });
+            } catch (switchError) {
+                console.error(switchError);
+            }
+        }
+    }
+    async function approveNFTForStaking(stakingAddress) {
+        try {
+            const isApproved = await nftContract.methods.isApprovedForAll(accounts[0], stakingAddress).call();
+            if (!isApproved) {
+                await nftContract.methods.setApprovalForAll(stakingAddress, true).send({ from: accounts[0] });
+                console.log('NFT approval successful for', stakingAddress);
+            }
+        } catch (error) {
+            console.error('NFT approval failed', error);
+            alert('Failed to approve NFT for staking. Please try again.');
+        }
+    }
+</script>
+
+<script>
+
+    //Functions
+
+    async function stakeToken(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        let tokenIds;
+
+        //FUD STAKING
+        if (pool === "4token") {
+            // Fetch token IDs from the 'Token Id Input Fud' input field
+            tokenIds = document.querySelector('.token-id-input-fud').value.split(',').map(id => {
+                const parsedId = parseInt(id.trim());
+                if (isNaN(parsedId)) {
+                    throw new Error("Invalid Token ID provided");
+                }
+                return parsedId;
+            });
+
+            // Logic for staking in "Ignore Fud" pool
+            await approveNFTForStaking(stakingContractAddressIgnoreFud);
+            try {
+                const receipt = await stakingContract.methods.stake(tokenIds).send({ from: accounts[0] });
+                console.log('Staked successfully in Ignore Fud pool:', receipt);
+            } catch (error) {
+                console.error('Error staking in Ignore Fud pool:', error);
+            }
+
+            //CHAIN STAKING
+        } else if (pool === "ChainGPT") {
+            // Fetch token IDs from the 'Token ID Input Chain' input field
+            tokenIds = document.querySelector('.token-id-input-chain').value.split(',').map(id => {
+                const parsedId = parseInt(id.trim());
+                if (isNaN(parsedId)) {
+                    throw new Error("Invalid Token ID provided");
+                }
+                return parsedId;
+            });
+
+            // Logic for staking in "ChainGPT" pool
+            await approveNFTForStaking(stakingContractAddressChainGPT);
+            try {
+                const receipt = await stakingContract.methods.stake(tokenIds).send({ from: accounts[0] });
+                console.log('Staked successfully in ChainGPT pool:', receipt);
+            } catch (error) {
+                console.error('Error staking in ChainGPT pool:', error);
+            }
+            
+            //F3 Staking
+        } else if (pool === "F3") {
+            // Fetch token IDs from the 'Token ID Input Chain' input field
+            tokenIds = document.querySelector('.token-id-input-f3').value.split(',').map(id => {
+                const parsedId = parseInt(id.trim());
+                if (isNaN(parsedId)) {
+                    throw new Error("Invalid Token ID provided");
+                }
+                return parsedId;
+            });
+
+            // Logic for staking in "F3" pool
+            await approveNFTForStaking(stakingContractAddressF3);
+            try {
+                const receipt = await stakingContract.methods.stake(tokenIds).send({ from: accounts[0] });
+                console.log('Staked successfully in Friend3 pool:', receipt);
+            } catch (error) {
+                console.error('Error staking in Friend3 pool:', error);
+            }
+        }
+    }
+
+
+    async function unstakeToken(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        let tokenIds;
+
+        if (pool === "4token") {
+            
+            // Fetch token IDs from the 'Token Id Input Fud' input field
+            tokenIds = document.querySelector('.token-id-input-fud').value.split(',').map(id => parseInt(id.trim()));
+
+            // Logic for unstaking in "Ignore Fud" pool
+            try {
+                const receipt = await stakingContract.methods.withdraw(tokenIds).send({ from: accounts[0] });
+                console.log('Unstaked successfully from Ignore Fud pool:', receipt);
+            } catch (error) {
+                console.error('Error unstaking from Ignore Fud pool:', error);
+            }
+            
+            // Fetch token IDs from the 'Token ID Input Chain' input field
+        } else if (pool === "ChainGPT") {
+            tokenIds = document.querySelector('.token-id-input-chain').value.split(',').map(id => parseInt(id.trim()));
+
+            // Logic for unstaking in "ChainGPT" pool
+            try {
+                const receipt = await stakingContract.methods.withdraw(tokenIds).send({ from: accounts[0] });
+                console.log('Unstaked successfully from ChainGPT pool:', receipt);
+            } catch (error) {
+                console.error('Error unstaking from ChainGPT pool:', error);
+            }
+            
+            // Fetch token IDs from the 'Token ID Input F3' input field
+        } else if (pool === "F3") {
+            tokenIds = document.querySelector('.token-id-input-f3').value.split(',').map(id => parseInt(id.trim()));
+
+            // Logic for unstaking in "ChainGPT" pool
+            try {
+                const receipt = await stakingContract.methods.withdraw(tokenIds).send({ from: accounts[0] });
+                console.log('Unstaked successfully from Friend3 pool:', receipt);
+            } catch (error) {
+                console.error('Error unstaking from Friend3 pool:', error);
+            }
+        }
+    }
+
+
+    async function claimRewards(pool) {
+        const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+        if (pool === "4token") {
+            // Logic for claiming rewards in "Ignore Fud" pool
+            try {
+                const receipt = await stakingContract.methods.claimRewards().send({ from: accounts[0] });
+                console.log('Rewards claimed successfully from Ignore Fud pool:', receipt);
+            } catch (error) {
+                console.error('Error claiming rewards from Ignore Fud pool:', error);
+            }
+        } else if (pool === "ChainGPT") {
+            // Logic for claiming rewards in "ChainGPT" pool
+            try {
+                const receipt = await stakingContract.methods.claimRewards().send({ from: accounts[0] });
+                console.log('Rewards claimed successfully from ChainGPT pool:', receipt);
+            } catch (error) {
+                console.error('Error claiming rewards from ChainGPT pool:', error);
+            }
+        } else if (pool === "F3") {
+            // Logic for claiming rewards in "F3" pool
+            try {
+                const receipt = await stakingContract.methods.claimRewards().send({ from: accounts[0] });
+                console.log('Rewards claimed successfully from Friend3 pool:', receipt);
+            } catch (error) {
+                console.error('Error claiming rewards from Friend3 pool:', error);
+            }
+        }
+    }
+
+   async function checkRewards(pool) {
+    const stakingContract = new web3.eth.Contract(stakingAbi, stakingContractAddress);
+    if (pool === "4token") {
+        // Logic for checking rewards in "Ignore Fud" pool
+        try {
+            const rewardsWei = await stakingContract.methods.userStakeRewards(accounts[0]).call();
+            const rewards = Math.floor(rewardsWei / 10**18);
+            console.log('Rewards for Ignore Fud pool:', rewards);
+            alert(`Rewards for Ignore Fud pool: ${rewards} $4TOKEN`);
+        } catch (error) {
+            console.error('Error checking rewards for Ignore Fud pool:', error);
+            alert(`Error checking rewards for Ignore Fud pool: ${error.message}`);
+        }
+    } else if (pool === "ChainGPT") {
+        // Logic for checking rewards in "ChainGPT" pool
+        try {
+            const rewardsWei = await stakingContract.methods.userStakeRewards(accounts[0]).call();
+            const rewards = Math.floor(rewardsWei / 10**18);
+            console.log('Rewards for ChainGPT pool:', rewards);
+            alert(`Rewards for ChainGPT pool: ${rewards} $CGPT`);
+        } catch (error) {
+            console.error('Error checking rewards for ChainGPT pool:', error);
+            alert(`Error checking rewards for ChainGPT pool: ${error.message}`);
+        }
+    } else if (pool === "F3") {
+        // Logic for checking rewards in "F3" pool
+        try {
+            const rewardsWei = await stakingContract.methods.userStakeRewards(accounts[0]).call();
+            const rewards = Math.floor(rewardsWei / 10**18);
+            console.log('Rewards for F3 pool:', rewards);
+            alert(`Rewards for Friend3 pool: ${rewards} $F3 IOU`);
+        } catch (error) {
+            console.error('Error checking rewards for Friend3 pool:', error);
+            alert(`Error checking rewards for Friend pool: ${error.message}`);
+        }
+    }
+}
+</script>
+
+<script>
+
+    // enhanced (buttons) event listeners
+document.querySelector(".action-button.stakefud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await stakeToken("4token");
+    } catch (error) {
+        console.error("Error staking NFT:", error);
+        alert("Error staking NFT. Please try again and ensure all parameters are met.");
+    }
+});
+
+
+document.querySelector(".action-button.unstakefud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await unstakeToken("4token");
+    } catch (error) {
+        console.error("Error unstaking FUD token:", error);
+        alert("Error unstaking NFT. Please try again and ensure all parameters are met.");
+    }
+});
+
+document.querySelector(".action-button.claimfud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await claimRewards("4token");
+    } catch (error) {
+        console.error("Error claiming rewards for 4Token:", error);
+        alert("Error claiming rewards for 4Token.");
+    }
+});
+
+document.querySelector(".action-button.checkfud").addEventListener("click", async function () {
+    try {
+        setStakingContract("4token"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await checkRewards("4token");
+    } catch (error) {
+        console.error("Error checking rewards for 4Token:", error);
+        alert("Error checking rewards for 4Token. Please try again.");
+    }
+});
+
+// Event listeners for "ChainGPT" pool
+document.querySelector(".action-button.stakechain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await stakeToken("ChainGPT");
+    } catch (error) {
+        console.error("Error staking NFT:", error);
+        alert("Error staking NFT. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.unstakechain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await unstakeToken("ChainGPT");
+    } catch (error) {
+        console.error("Error unstaking NFT:", error);
+        alert("Error unstaking NFT. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.claimchain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await claimRewards("ChainGPT");
+    } catch (error) {
+        console.error("Error claiming rewards for ChainGPT token:", error);
+        alert("Error claiming rewards for ChainGPT token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.checkchain").addEventListener("click", async function () {
+    try {
+        setStakingContract("ChainGPT"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await checkRewards("ChainGPT");
+    } catch (error) {
+        console.error("Error checking rewards for ChainGPT token:", error);
+        alert("Error checking rewards for ChainGPT token. Please try again.");
+    }
+});
+
+// Event listeners for "F3" pool
+document.querySelector(".action-button.stakef3").addEventListener("click", async function () {
+    try {
+        setStakingContract("F3"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await stakeToken("F3");
+    } catch (error) {
+        console.error("Error staking NFT:", error);
+        alert("Error staking NFT. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.unstakef3").addEventListener("click", async function () {
+    try {
+        setStakingContract("F3"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await unstakeToken("F3");
+    } catch (error) {
+        console.error("Error unstaking NFT:", error);
+        alert("Error unstaking NFT. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.claimf3").addEventListener("click", async function () {
+    try {
+        setStakingContract("F3"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await claimRewards("F3");
+    } catch (error) {
+        console.error("Error claiming rewards for Friend3 token:", error);
+        alert("Error claiming rewards for Friend3 token. Please try again.");
+    }
+});
+
+document.querySelector(".action-button.checkf31").addEventListener("click", async function () {
+    try {
+        setStakingContract("F3"); // Set the correct contract address
+        await checkAndSwitchChain();
+        await checkRewards("F3");
+    } catch (error) {
+        console.error("Error checking rewards for Friend3 token:", error);
+        alert("Error checking rewards for Friend3 token. Please try again.");
+    }
+});
+</script>
